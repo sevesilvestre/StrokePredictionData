@@ -1,0 +1,251 @@
+---
+title: "Stroke Prediction"
+author: "Group 11 - MGSC 310-01"
+subtitle: 
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+---
+
+```{r setup, include=FALSE}
+
+
+library(knitr)
+
+# set seed to your own favorite number
+set.seed(2021)
+options(width=70)
+options(scipen=99)
+
+
+# general rchunk code options
+
+# this sets text to small
+opts_chunk$set(tidy.opts=list(width.wrap=50),tidy=FALSE, size = "vsmall")  
+opts_chunk$set(message = FALSE,                                          
+               warning = FALSE,
+               # "caching" stores objects in code chunks and only rewrites if you change things
+               cache = TRUE,                               
+               # automatically downloads dependency files
+               autodep = TRUE,
+               # 
+               cache.comments = FALSE,
+               # 
+               collapse = TRUE,
+               fig.width = 5,  
+               fig.height = 4,
+               fig.align='center')
+
+
+```
+
+
+Importing the Data Set
+```{r}
+library('tidyverse')
+stroke <- read.csv("datasets/healthcare-dataset-stroke-data.csv")
+view(stroke)
+```
+
+```{r}
+library('rsample')
+
+stroke <- stroke %>% 
+  select(-id)
+
+stroke$gender <- as.factor(stroke$gender)
+stroke$ever_married <- as.factor(stroke$ever_married)
+stroke$work_type <- as.factor(stroke$work_type)
+stroke$Residence_type <- as.factor(stroke$Residence_type)
+stroke$smoking_status <- as.factor(stroke$smoking_status)
+stroke$heart_disease <- factor(stroke$heart_disease, levels = c(0,1), labels = c("No", "Yes"))
+stroke$hypertension <- factor(stroke$hypertension, levels = c(0,1), labels = c("No", "Yes"))
+stroke$bmi <- as.numeric(stroke$bmi)
+stroke$stroke <- as.factor(stroke$stroke)
+
+
+
+
+
+stroke <- na.omit(stroke)
+
+str(stroke)
+glimpse(stroke)
+```
+```{r}
+summary(stroke)
+```
+DATA VISUALIZATION 
+```{r}
+ggplot(stroke, aes(x=gender, fill = gender)) + geom_bar() + theme_minimal() + labs(title = "Gender Count on Stroke Dataset")
+```
+```{r}
+ggplot(stroke, aes(x=stroke, fill = stroke)) + geom_bar() + theme_minimal() + labs(title = "Gender Count on Stroke Dataset")
+```
+MODEL 1: Linear Regression
+```{r}
+set.seed(310)
+stroke_split <- initial_split(stroke, prop=0.75)
+stroke_train <- training(stroke_split)
+stroke_test <- testing(stroke_split)
+
+logit1 <- glm(stroke ~.,
+              data = stroke_train,
+              family = binomial)
+
+# print out results of the model
+summary(logit1)
+
+# interpretation
+exp(logit1$coefficients)
+
+# to prevent R from using scientific format
+options(scipen = 999)
+exp(logit1$coefficients)
+
+# round up the numbers (nicer to print out)
+round(exp(logit1$coefficients), 3)
+```
+
+```{r}
+# predicting outcome probabilities (scoring)
+library(ggplot2)
+library(plotROC)
+scores_train <- predict(logit1, type = "response")
+classes_train <- ifelse(scores_train > 0.09, 1, 0)
+
+results_train <- data.frame(
+  truth = stroke_train$stroke,
+  truth_numeric = as.numeric(stroke_train$stroke),
+  scores = scores_train,
+  predicted = factor(classes_train)
+  )
+
+library(yardstick)
+
+cm_train <- conf_mat(results_train,
+                     truth = truth,
+                     estimate = predicted)
+print(cm_train)
+
+roc_train <- ggplot(results_train, aes(m = scores, d = truth_numeric)) +
+  geom_roc(cutoffs.at = c(0.9, 0.7, 0.5, 0.3, 0.1, 0.01))
+
+plot(roc_train)
+
+#Accuracy = (TN+TP) / (TN+TP+FN+FP)
+acc <- (3052 + 94) / (3052 + 94 + 473 + 63)
+sprintf('Training Accuracy: %f', acc)
+#Sensitivity = TP/ (TP + FN)
+sens <- 94/ (94 + 63)
+sprintf('Training Sensitivity: %f', sens)
+#Specificity = TN / (TN + FP)
+spec <- 3052 / (3052 + 473)
+sprintf('Training Specificity: %f', spec)
+```
+
+
+```{r}
+scores_test <- predict(logit1, type = "response", newdata = stroke_test)
+classes_test <- ifelse(scores_test > 0.09, 1, 0)
+
+results_test <- data.frame(
+  truth = stroke_test$stroke,
+  truth_numeric = as.numeric(stroke_test$stroke),
+  scores = scores_test,
+  predicted = factor(classes_test)
+  )
+
+library(yardstick)
+
+cm_test <- conf_mat(results_test,
+                     truth = truth,
+                     estimate = predicted)
+print(cm_test)
+
+roc_test <- ggplot(results_test, aes(m = scores, d = truth_numeric)) +
+  geom_roc(cutoffs.at = c(0.9, 0.7, 0.5, 0.3, 0.1, 0.01))
+
+plot(roc_test)
+
+#Accuracy = (TN+TP) / (TN+TP+FN+FP)
+acc <- (1009 + 37) / (1009 + 37 + 15 + 166)
+sprintf('Testing Accuracy: %f', acc)
+#Sensitivity = TP/ (TP + FN)
+sens <- 37/ (37 + 15)
+sprintf('Testing Sensitivity: %f', sens)
+#Specificity = TN / (TN + FP)
+spec <- 1009 / (1009 + 166)
+sprintf('Testing Specificity: %f', spec)
+```
+```{r}
+calc_auc(roc_train)
+calc_auc(roc_test)
+```
+MODEL 2: K-Means Clustering
+
+```{r}
+library(factoextra)
+
+stroke_clust <- stroke[sample(nrow(stroke), 1000), ] %>% select('age', 'avg_glucose_level', 'bmi')
+
+# elbow method
+fviz_nbclust(stroke_clust,
+             kmeans,
+             method="wss") +
+  geom_vline(xintercept=4, linetype =2) + 
+  labs(subtitle ="Elbow Method")
+
+# Silhouette method
+fviz_nbclust(stroke_clust,
+             kmeans,
+             method="silhouette")
+
+# Gap Statistic method
+fviz_nbclust(stroke_clust,
+             kmeans,
+             method="gap_stat",
+             nboot=100)
+
+library("NbClust")
+Nb_cl <- NbClust(stroke_clust, #%>% sample_frac(0.1)
+                 diss=NULL,
+                 distance="euclidean",
+                 min.nc = 2,
+                 max.nc = 6,
+                 method="kmeans")
+
+
+Nb_cl$Best.nc[1,]
+
+barplot(table(Nb_cl$Best.n[1,]), xlab = "Number of Clusters", ylab = "Number of Criteria", main = "Number of Clusters Chosen by 26 Criteria")
+```
+
+
+```{r}
+library(cluster)
+kmeans_clust <- kmeans(stroke_clust,
+                       centers = 2,
+                       nstart = 25)
+
+#Show average X variable value for each cluster
+kmeans_clust$centers
+
+clusplot(stroke_clust,
+         kmeans_clust$cluster,
+         color = TRUE,
+         shade = FALSE,
+         labels = 5, lines =2)
+```
+MODEL 3: DECISION TREE
+```{r, fig.width= 30, fig.height=15}
+library(partykit)
+library(PerformanceAnalytics)
+library(rpart)   
+library(rpart.plot)  
+library(tree)
+
+stroke_tree <- ctree(stroke ~ age + hypertension + avg_glucose_level, data = stroke_train)
+plot(stroke_tree, gp = gpar(fontsize = 10))
+```
