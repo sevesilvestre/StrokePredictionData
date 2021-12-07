@@ -1,6 +1,5 @@
 ---
 title: "Stroke Prediction"
-author: "Group 11 - MGSC 310-01"
 subtitle: 
 output:
   html_document:
