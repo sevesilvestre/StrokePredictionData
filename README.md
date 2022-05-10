@@ -15,3 +15,9 @@ Concluded that from the K-Means clustering model, most victims of stroke were a 
 
 Concluded from the decision tree that there were only 2 variable coefficients that were seen as significant: age and glucose level were the 2 notable variables to accurately predict the chance of somebody suffering from a stroke.
 
+
+## Cluster Analysis using KMeans
+![](https://github.com/sevesilvestre/StrokePredictionData/blob/main/images/RCluster.png)
+
+## Decision Tree Chart
+![](https://github.com/sevesilvestre/StrokePredictionData/blob/main/images/DecisionTree.png)
