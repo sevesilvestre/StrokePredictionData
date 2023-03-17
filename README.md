@@ -23,7 +23,7 @@ R
 
 ## Data Gathering
 With these questions I had, I downloaded a dataset from Kaggle to help me answer these questions: 
-- [Enter Kaggle Dataset]
+- **[Healthcare Stroke Prediction Data Set](https://www.kaggle.com/datasets/fedesoriano/stroke-prediction-dataset)** (Soruce: Kaggle)
 
 ## Data Cleaning + Data Manipulation
 After loading the dataset into RStudio, the first order of business is drop any columns that will not be necessary for this analysis, as well as altering the data types for variables for optimal use.
